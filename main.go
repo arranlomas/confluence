@@ -1,10 +1,11 @@
-package main
+package trickl
 
 import (
 	"log"
 	"net"
 	"net/http"
 	"time"
+	"os"
 
 	"github.com/anacrolix/dht"
 	_ "github.com/anacrolix/envpprof"
@@ -29,14 +30,17 @@ var flags = struct {
 	Addr:          "localhost:8080",
 	CacheCapacity: 10 << 30,
 	TorrentGrace:  time.Minute,
+	FileDir: "/storage/emulated/0/confluence",
 }
 
-func newTorrentClient() (ret *torrent.Client, err error) {
+func newTorrentClient(mWorkingDir string) (ret *torrent.Client, err error) {
 	blocklist, err := iplist.MMapPacked("packed-blocklist")
 	if err != nil {
 		log.Print(err)
 	}
 	storage := func() storage.ClientImpl {
+		return storage.NewFile(mWorkingDir)
+		log.Printf("FILE DIR FLAG %s", flags.FileDir)
 		if flags.FileDir != "" {
 			return storage.NewFile(flags.FileDir)
 		}
@@ -46,6 +50,8 @@ func newTorrentClient() (ret *torrent.Client, err error) {
 		storageProvider := fc.AsResourceProvider()
 		return storage.NewResourcePieces(storageProvider)
 	}()
+
+	log.Printf("STORAGE %s", storage)
 	return torrent.NewClient(&torrent.Config{
 		IPBlocklist:    blocklist,
 		DefaultStorage: storage,
@@ -56,10 +62,21 @@ func newTorrentClient() (ret *torrent.Client, err error) {
 	})
 }
 
-func main() {
+func Main(mWorkingDir string) {
+	log.Printf("WD INPUT %s", mWorkingDir)
+	wd, _ := os.Getwd()
+	log.Printf("START WD %s", wd)
+	os.MkdirAll(mWorkingDir, 0777)
+	os.Chdir(mWorkingDir)
+	wd2, _ := os.Getwd()
+	log.Printf("START WD after Chdir %s", wd2)
+	log.Printf("AFTER flag %s", flags.FileDir)
+	flags.FileDir = mWorkingDir
+	log.Printf("BEFORE flag %s", flags.FileDir)
+
 	log.SetFlags(log.Flags() | log.Lshortfile)
 	tagflag.Parse(&flags)
-	cl, err := newTorrentClient()
+	cl, err := newTorrentClient(mWorkingDir)
 	if err != nil {
 		log.Fatalf("error creating torrent client: %s", err)
 	}
