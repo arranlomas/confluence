@@ -18,7 +18,7 @@ this is a super quick and dirty setup for now - will be improved at a later date
 ```
 # Usage
 ```
-$ gomobile bind github.com/arranlomas/confluence -target=android
+$ gomobile bind github.com/anacrolix/confluence -target=android
 
 then use the aar as a module in you android project
 to start the daemon call trickl.Trickl.androidMain(workingDir.absolutePath) in your android project
