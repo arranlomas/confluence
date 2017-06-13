@@ -7,7 +7,14 @@ Confluence is a torrent client as a HTTP service. This allows for easy use from 
 before setup ensure that go and gomobile are setup correctly
 # Installation
 ```
-go get github.com/arranlomas/confluence
+$ go get github.com/anacrolix/confluence
+$ go get github.com/arranlomas/torrent
+$ go get github.com/arranlomas/confluence
+copy all files from arranlomas/confluence to ancrolix/confluence
+copy all files from arranlomas/torrent to ancrolix/torrent
+
+this is a super quick and dirty setup for now - will be improved at a later date
+
 ```
 # Usage
 ```
