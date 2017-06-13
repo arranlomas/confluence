@@ -27,13 +27,13 @@ var flags = struct {
 	FileDir       string        `help:"File-based storage directory, overrides piece storage"`
 	Seed          bool          `help:"Seed data"`
 }{
-	Addr:          "localhost:8080",
+	Addr:          ":8080",
 	CacheCapacity: 10 << 30,
 	TorrentGrace:  time.Minute,
 	FileDir: "/storage/emulated/0/confluence",
 }
 
-func newTorrentClient(mWorkingDir string) (ret *torrent.Client, err error) {
+func newAndroidTorrentClient(mWorkingDir string) (ret *torrent.Client, err error) {
 	blocklist, err := iplist.MMapPacked("packed-blocklist")
 	if err != nil {
 		log.Print(err)
@@ -62,7 +62,7 @@ func newTorrentClient(mWorkingDir string) (ret *torrent.Client, err error) {
 	})
 }
 
-func Main(mWorkingDir string) {
+func AndroidMain(mWorkingDir string) {
 	log.Printf("WD INPUT %s", mWorkingDir)
 	wd, _ := os.Getwd()
 	log.Printf("START WD %s", wd)
@@ -76,7 +76,7 @@ func Main(mWorkingDir string) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 	tagflag.Parse(&flags)
-	cl, err := newTorrentClient(mWorkingDir)
+	cl, err := newAndroidTorrentClient(mWorkingDir)
 	if err != nil {
 		log.Fatalf("error creating torrent client: %s", err)
 	}
@@ -93,3 +93,49 @@ func Main(mWorkingDir string) {
 		log.Fatal(err)
 	}
 }
+
+// func main() {
+// 	log.SetFlags(log.Flags() | log.Lshortfile)
+// 	tagflag.Parse(&flags)
+// 	cl, err := newTorrentClient()
+// 	if err != nil {
+// 		log.Fatalf("error creating torrent client: %s", err)
+// 	}
+// 	defer cl.Close()
+// 	l, err := net.Listen("tcp", flags.Addr)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer l.Close()
+// 	log.Printf("serving http at %s", l.Addr())
+// 	h := &confluence.Handler{cl, flags.TorrentGrace}
+// 	err = http.Serve(l, h)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
+
+// func newTorrentClient() (ret *torrent.Client, err error) {
+// 	blocklist, err := iplist.MMapPacked("packed-blocklist")
+// 	if err != nil {
+// 		log.Print(err)
+// 	}
+// 	storage := func() storage.ClientImpl {
+// 		if flags.FileDir != "" {
+// 			return storage.NewFile(flags.FileDir)
+// 		}
+// 		fc, err := filecache.NewCache("filecache")
+// 		x.Pie(err)
+// 		fc.SetCapacity(flags.CacheCapacity.Int64())
+// 		storageProvider := fc.AsResourceProvider()
+// 		return storage.NewResourcePieces(storageProvider)
+// 	}()
+// 	return torrent.NewClient(&torrent.Config{
+// 		IPBlocklist:    blocklist,
+// 		DefaultStorage: storage,
+// 		DHTConfig: dht.ServerConfig{
+// 			PublicIP: flags.DHTPublicIP,
+// 		},
+// 		Seed: flags.Seed,
+// 	})
+// }
