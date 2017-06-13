@@ -1,21 +1,20 @@
+This is a branch of the confluence wrapper for anacrolix torrent, this is so that it works nicely on mobile, the main changes are the changes to the main method and the ip address, 
+
 # confluence
 
 Confluence is a torrent client as a HTTP service. This allows for easy use from other processes, languages, and machines, due to the ubiquity of HTTP. It makes use of [anacrolix/torrent](https://github.com/anacrolix/torrent)'s [download-on-demand](https://godoc.org/github.com/anacrolix/torrent#Torrent.NewReader) torrenting, and [custom data backend](https://godoc.org/github.com/anacrolix/torrent/storage#ClientImpl) features to store data in a cache. You can then utilize the BitTorrent network with sensible defaults as though it were just regular HTTP.
 
+before setup ensure that go and gomobile are setup correctly
 # Installation
 ```
-go get github.com/anacrolix/confluence
+go get github.com/arranlomas/confluence
 ```
 # Usage
 ```
-$ godo github.com/anacrolix/confluence -h
-Usage:
-  confluence [OPTIONS...]
-Options:
-  -addr            (string)          HTTP listen address (Default: localhost:8080)
-  -cacheCapacity   (tagflag.Bytes)   Data cache capacity (Default: 11 GB)
-  -dhtPublicIP     (net.IP)          DHT secure IP
-```
+$ gomobile bind github.com/arranlomas/confluence -target=android
+
+then use the aar as a module in you android project
+to start the daemon call trickl.Trickl.androidMain(workingDir.absolutePath) in your android project
 
 Confluence will announce itself to DHT, and wait for HTTP activity. Torrents are added to the client as needed. Without an active request on a torrent, it is kicked from the client after one minute. Its data however may remain in the cache for future uses of that torrent.
 
