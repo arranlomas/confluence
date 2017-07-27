@@ -33,7 +33,7 @@ var flags = struct {
 	FileDir: "/storage/emulated/0/confluence",
 }
 
-func newAndroidTorrentClient(mWorkingDir string) (ret *torrent.Client, err error) {
+func newAndroidTorrentClient(mWorkingDir string, seedIn bool) (ret *torrent.Client, err error) {
 	blocklist, err := iplist.MMapPacked("packed-blocklist")
 	if err != nil {
 		log.Print(err)
@@ -58,11 +58,11 @@ func newAndroidTorrentClient(mWorkingDir string) (ret *torrent.Client, err error
 		DHTConfig: dht.ServerConfig{
 			PublicIP: flags.DHTPublicIP,
 		},
-		Seed: flags.Seed,
+		Seed: seedIn,
 	})
 }
 
-func AndroidMain(mWorkingDir string) {
+func AndroidMain(mWorkingDir string, seedIn bool) {
 	log.Printf("WD INPUT %s", mWorkingDir)
 	wd, _ := os.Getwd()
 	log.Printf("START WD %s", wd)
@@ -70,13 +70,13 @@ func AndroidMain(mWorkingDir string) {
 	os.Chdir(mWorkingDir)
 	wd2, _ := os.Getwd()
 	log.Printf("START WD after Chdir %s", wd2)
-	log.Printf("AFTER flag %s", flags.FileDir)
-	flags.FileDir = mWorkingDir
 	log.Printf("BEFORE flag %s", flags.FileDir)
+	flags.FileDir = mWorkingDir
+	log.Printf("AFTER flag %s", flags.FileDir)
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 	tagflag.Parse(&flags)
-	cl, err := newAndroidTorrentClient(mWorkingDir)
+	cl, err := newAndroidTorrentClient(mWorkingDir, seedIn)
 	if err != nil {
 		log.Fatalf("error creating torrent client: %s", err)
 	}
@@ -87,7 +87,7 @@ func AndroidMain(mWorkingDir string) {
 	}
 	defer l.Close()
 	log.Printf("serving http at %s", l.Addr())
-	h := &confluence.Handler{cl, flags.TorrentGrace}
+	h := &confluence.Handler{cl, -1}
 	err = http.Serve(l, h)
 	if err != nil {
 		log.Fatal(err)
