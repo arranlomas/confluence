@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"log"
 
 	"github.com/anacrolix/missinggo"
 	"github.com/anacrolix/missinggo/httptoo"
@@ -25,13 +24,10 @@ func torrentFileByPath(t *torrent.Torrent, path_ string) *torrent.File {
 }
 
 func saveTorrentFile(t *torrent.Torrent) (err error) {
-	wd, _ := os.Getwd()
-	log.Printf("SAVE TORRENT WD %s", wd)
 	path_ := filepath.Join("torrents", t.InfoHash().HexString()+".torrent")
 	os.MkdirAll(filepath.Dir(path_), 0750)
 	f, err := os.OpenFile(path_, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0660)
 	if err != nil {
-		log.Printf("error opening file %s", err)
 		return
 	}
 	defer f.Close()

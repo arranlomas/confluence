@@ -24,14 +24,6 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 	getTorrentClientFromRequestContext(r).WriteStatus(w)
-	// statusJson := getTorrentClientFromRequestContext(r).GetStatusAsJson()
-	// body, err := json.Marshal(statusJson)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// w.Header().Set("Content-Type", "application/json")
- //  	w.Write(body)
 }
 
 func infoHandler(w http.ResponseWriter, r *http.Request) {
