@@ -35,14 +35,14 @@ var flags = struct {
 	TorrentGrace:  time.Minute,
 }
 
-func newTorrentClient() (ret *torrent.Client, err error) {
+func newAndroidTorrentClient(mWorkingDir string, seedIn bool) (ret *torrent.Client, err error) {
 	blocklist, err := iplist.MMapPacked("packed-blocklist")
 	if err != nil {
 		log.Print(err)
 	}
 	storage := func() storage.ClientImpl {
-		if flags.FileDir != "" {
-			return storage.NewFile(flags.FileDir)
+		if mWorkingDir != "" {
+			return storage.NewFile(mWorkingDir)
 		}
 		fc, err := filecache.NewCache("filecache")
 		x.Pie(err)
@@ -71,14 +71,25 @@ func newTorrentClient() (ret *torrent.Client, err error) {
 			PublicIP:      flags.DHTPublicIP,
 			StartingNodes: dht.GlobalBootstrapAddrs,
 		},
-		Seed: flags.Seed,
+		Seed: seedIn,
 	})
 }
 
-func main() {
+func AndroidMain(mWorkingDir string, seedIn bool, addrIn: string) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
+	log.Printf("WD INPUT %s", mWorkingDir)
+	wd, _ := os.Getwd()
+	log.Printf("START WD %s", wd)
+	os.MkdirAll(mWorkingDir, 0777)
+	os.Chdir(mWorkingDir)
+	wd2, _ := os.Getwd()
+	log.Printf("START WD after Chdir %s", wd2)
+	log.Printf("BEFORE flag %s", flags.FileDir)
+	flags.FileDir = mWorkingDir
+	log.Printf("AFTER flag %s", flags.FileDir)
+
 	tagflag.Parse(&flags)
-	cl, err := newTorrentClient()
+	cl, err := newAndroidTorrentClient(mWorkingDir, seedIn)
 	if err != nil {
 		log.Fatalf("error creating torrent client: %s", err)
 	}
@@ -86,7 +97,7 @@ func main() {
 	http.HandleFunc("/debug/dht", func(w http.ResponseWriter, r *http.Request) {
 		cl.DHT().WriteStatus(w)
 	})
-	l, err := net.Listen("tcp", flags.Addr)
+	l, err := net.Listen("tcp", addrIn)
 	if err != nil {
 		log.Fatal(err)
 	}
