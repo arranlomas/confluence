@@ -1,6 +1,7 @@
-package trickl
+package confluencewrapper
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -21,16 +22,18 @@ import (
 
 var flags = struct {
 	Addr          string        `help:"HTTP listen address"`
-	DHTPublicIP   net.IP        `help:"DHT secure IP"`
+	DHTPublicIP   net.IP        `help:"IP as it will appear to the DHT network"`
 	CacheCapacity tagflag.Bytes `help:"Data cache capacity"`
 	TorrentGrace  time.Duration `help:"How long to wait to drop a torrent after its last request"`
 	FileDir       string        `help:"File-based storage directory, overrides piece storage"`
 	Seed          bool          `help:"Seed data"`
+	// You'd want this if access to the main HTTP service is trusted, such as
+	// used over localhost by other known services.
+	DebugOnMain bool `help:"Expose default serve mux /debug/ endpoints over http"`
 }{
-	Addr:          ":8080",
+	Addr:          "localhost:8080",
 	CacheCapacity: 10 << 30,
 	TorrentGrace:  time.Minute,
-	FileDir: "/storage/emulated/0/confluence",
 }
 
 func newAndroidTorrentClient(mWorkingDir string, seedIn bool) (ret *torrent.Client, err error) {
@@ -39,30 +42,42 @@ func newAndroidTorrentClient(mWorkingDir string, seedIn bool) (ret *torrent.Clie
 		log.Print(err)
 	}
 	storage := func() storage.ClientImpl {
-		return storage.NewFile(mWorkingDir)
-		log.Printf("FILE DIR FLAG %s", flags.FileDir)
-		if flags.FileDir != "" {
-			return storage.NewFile(flags.FileDir)
+		if mWorkingDir != "" {
+			return storage.NewFile(mWorkingDir)
 		}
 		fc, err := filecache.NewCache("filecache")
 		x.Pie(err)
+
+		// Register filecache debug endpoints on the default muxer.
+		http.HandleFunc("/debug/filecache/status", func(w http.ResponseWriter, r *http.Request) {
+			info := fc.Info()
+			fmt.Fprintf(w, "Capacity: %d\n", info.Capacity)
+			fmt.Fprintf(w, "Current Size: %d\n", info.Filled)
+			fmt.Fprintf(w, "Item Count: %d\n", info.NumItems)
+		})
+		http.HandleFunc("/debug/filecache/lru", func(w http.ResponseWriter, r *http.Request) {
+			fc.WalkItems(func(item filecache.ItemInfo) {
+				fmt.Fprintf(w, "%s\t%d\t%s\n", item.Accessed, item.Size, item.Path)
+			})
+		})
+
 		fc.SetCapacity(flags.CacheCapacity.Int64())
 		storageProvider := fc.AsResourceProvider()
 		return storage.NewResourcePieces(storageProvider)
 	}()
-
-	log.Printf("STORAGE %s", storage)
 	return torrent.NewClient(&torrent.Config{
 		IPBlocklist:    blocklist,
 		DefaultStorage: storage,
 		DHTConfig: dht.ServerConfig{
-			PublicIP: flags.DHTPublicIP,
+			PublicIP:      flags.DHTPublicIP,
+			StartingNodes: dht.GlobalBootstrapAddrs,
 		},
 		Seed: seedIn,
 	})
 }
 
-func AndroidMain(mWorkingDir string, seedIn bool) {
+func AndroidMain(mWorkingDir string, seedIn bool, addrIn string) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
 	log.Printf("WD INPUT %s", mWorkingDir)
 	wd, _ := os.Getwd()
 	log.Printf("START WD %s", wd)
@@ -74,68 +89,32 @@ func AndroidMain(mWorkingDir string, seedIn bool) {
 	flags.FileDir = mWorkingDir
 	log.Printf("AFTER flag %s", flags.FileDir)
 
-	log.SetFlags(log.Flags() | log.Lshortfile)
 	tagflag.Parse(&flags)
 	cl, err := newAndroidTorrentClient(mWorkingDir, seedIn)
 	if err != nil {
 		log.Fatalf("error creating torrent client: %s", err)
 	}
 	defer cl.Close()
-	l, err := net.Listen("tcp", flags.Addr)
+	http.HandleFunc("/debug/dht", func(w http.ResponseWriter, r *http.Request) {
+		cl.DHT().WriteStatus(w)
+	})
+	l, err := net.Listen("tcp", addrIn)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer l.Close()
 	log.Printf("serving http at %s", l.Addr())
-	h := &confluence.Handler{cl, -1}
+	var h http.Handler = &confluence.Handler{cl, flags.TorrentGrace}
+	if flags.DebugOnMain {
+		h = func() http.Handler {
+			mux := http.NewServeMux()
+			mux.Handle("/debug/", http.DefaultServeMux)
+			mux.Handle("/", h)
+			return mux
+		}()
+	}
 	err = http.Serve(l, h)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
-
-// func main() {
-// 	log.SetFlags(log.Flags() | log.Lshortfile)
-// 	tagflag.Parse(&flags)
-// 	cl, err := newTorrentClient()
-// 	if err != nil {
-// 		log.Fatalf("error creating torrent client: %s", err)
-// 	}
-// 	defer cl.Close()
-// 	l, err := net.Listen("tcp", flags.Addr)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	defer l.Close()
-// 	log.Printf("serving http at %s", l.Addr())
-// 	h := &confluence.Handler{cl, flags.TorrentGrace}
-// 	err = http.Serve(l, h)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
-
-// func newTorrentClient() (ret *torrent.Client, err error) {
-// 	blocklist, err := iplist.MMapPacked("packed-blocklist")
-// 	if err != nil {
-// 		log.Print(err)
-// 	}
-// 	storage := func() storage.ClientImpl {
-// 		if flags.FileDir != "" {
-// 			return storage.NewFile(flags.FileDir)
-// 		}
-// 		fc, err := filecache.NewCache("filecache")
-// 		x.Pie(err)
-// 		fc.SetCapacity(flags.CacheCapacity.Int64())
-// 		storageProvider := fc.AsResourceProvider()
-// 		return storage.NewResourcePieces(storageProvider)
-// 	}()
-// 	return torrent.NewClient(&torrent.Config{
-// 		IPBlocklist:    blocklist,
-// 		DefaultStorage: storage,
-// 		DHTConfig: dht.ServerConfig{
-// 			PublicIP: flags.DHTPublicIP,
-// 		},
-// 		Seed: flags.Seed,
-// 	})
-// }

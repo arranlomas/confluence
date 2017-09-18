@@ -14,10 +14,14 @@ Usage:
 Options:
   -addr            (string)          HTTP listen address (Default: localhost:8080)
   -cacheCapacity   (tagflag.Bytes)   Data cache capacity (Default: 11 GB)
+  -debugOnMain     (bool)            Expose default serve mux /debug/ endpoints over http
   -dhtPublicIP     (net.IP)          DHT secure IP
+  -fileDir         (string)          File-based storage directory, overrides piece storage
+  -seed            (bool)            Seed data
+  -torrentGrace    (time.Duration)   How long to wait to drop a torrent after its last request (Default: 1m0s)
 ```
 
-Confluence will announce itself to DHT, and wait for HTTP activity. Torrents are added to the client as needed. Without an active request on a torrent, it is kicked from the client after one minute. Its data however may remain in the cache for future uses of that torrent.
+Confluence will announce itself to DHT, and wait for HTTP activity. Torrents are added to the client as needed. Without an active request on a torrent, it is kicked from the client after the torrent grace period. Its data however may remain in the cache for future uses of that torrent.
 
 # Routes
 
@@ -28,4 +32,4 @@ There are several routes to interact with torrents:
  * `GET /info?ih=<infohash in hex>`. This returns the info bytes for the matching torrent. It's useful if the caller needs to know about the torrent, such as what files it contains. It will block until the info is available. The response is the full bencoded info dictionary per [BEP 3](http://www.bittorrent.org/beps/bep_0003.html).
  * `/events?ih=<infohash in hex>`. This is a websocket that emits frames with [confluence.Event] encoded as JSON for the torrent. The PieceChanged field for instance is set if the given piece changed [state](https://godoc.org/github.com/anacrolix/torrent#PieceState) within the torrent.
  * `GET /fileState?ih=<infohash in hex>&path=<display path of file declared in torrent info>`. Returns [file state](https://godoc.org/github.com/anacrolix/torrent#File.State) encoded as JSON.
- * `POST /metainfo?ih=<infohash in hex>`. Updates a torrents metainfo. New trackers are added. Info bytes are set if not already known. The request body must be the bencoded metainfo, the same as what would appear in a `.torrent` file.
+ * `POST /metainfo?ih=<infohash in hex>`. The request body is a bencoded metainfo, as typically appears in a `.torrent` file. The trackers and info bytes are applied to the torrent matching the info hash provided in the query. No fields in the metainfo are mandatory.
