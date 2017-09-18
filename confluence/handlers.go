@@ -37,6 +37,13 @@ func infoHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(mi.InfoBytes)
 }
 
+func verifyDataHandler(w http.ResponseWriter, r *http.Request) {
+	t := torrentForRequest(r)
+	t.VerifyData()
+	w.WriteHeader(200)
+}
+
+
 func eventHandler(w http.ResponseWriter, r *http.Request) {
 	t := torrentForRequest(r)
 	select {

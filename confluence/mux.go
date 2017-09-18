@@ -15,4 +15,5 @@ func init() {
 	mux.Handle("/events", alice.New(withTorrentContext).ThenFunc(eventHandler))
 	mux.Handle("/fileState", alice.New(withTorrentContext).ThenFunc(fileStateHandler))
 	mux.Handle("/metainfo", alice.New(withTorrentContext).ThenFunc(metainfoHandler))
+	mux.Handle("/verifyData", alice.New(withTorrentContext).ThenFunc(verifyDataHandler))
 }
