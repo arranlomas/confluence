@@ -1,4 +1,4 @@
-package main
+package confluencewrapper
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"time"
+	"os"
 
 	"github.com/anacrolix/dht"
 	_ "github.com/anacrolix/envpprof"
@@ -75,7 +76,7 @@ func newAndroidTorrentClient(mWorkingDir string, seedIn bool) (ret *torrent.Clie
 	})
 }
 
-func AndroidMain(mWorkingDir string, seedIn bool, addrIn: string) {
+func AndroidMain(mWorkingDir string, seedIn bool, addrIn string) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 	log.Printf("WD INPUT %s", mWorkingDir)
 	wd, _ := os.Getwd()
