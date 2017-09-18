@@ -1,4 +1,4 @@
-package confluencewrapper
+package main
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"time"
-	"os"
 
 	"github.com/anacrolix/dht"
 	_ "github.com/anacrolix/envpprof"
@@ -36,14 +35,14 @@ var flags = struct {
 	TorrentGrace:  time.Minute,
 }
 
-func newAndroidTorrentClient(mWorkingDir string, seedIn bool) (ret *torrent.Client, err error) {
+func newTorrentClient() (ret *torrent.Client, err error) {
 	blocklist, err := iplist.MMapPacked("packed-blocklist")
 	if err != nil {
 		log.Print(err)
 	}
 	storage := func() storage.ClientImpl {
-		if mWorkingDir != "" {
-			return storage.NewFile(mWorkingDir)
+		if flags.FileDir != "" {
+			return storage.NewFile(flags.FileDir)
 		}
 		fc, err := filecache.NewCache("filecache")
 		x.Pie(err)
@@ -72,25 +71,14 @@ func newAndroidTorrentClient(mWorkingDir string, seedIn bool) (ret *torrent.Clie
 			PublicIP:      flags.DHTPublicIP,
 			StartingNodes: dht.GlobalBootstrapAddrs,
 		},
-		Seed: seedIn,
+		Seed: flags.Seed,
 	})
 }
 
-func AndroidMain(mWorkingDir string, seedIn bool, addrIn string) {
+func main() {
 	log.SetFlags(log.Flags() | log.Lshortfile)
-	log.Printf("WD INPUT %s", mWorkingDir)
-	wd, _ := os.Getwd()
-	log.Printf("START WD %s", wd)
-	os.MkdirAll(mWorkingDir, 0777)
-	os.Chdir(mWorkingDir)
-	wd2, _ := os.Getwd()
-	log.Printf("START WD after Chdir %s", wd2)
-	log.Printf("BEFORE flag %s", flags.FileDir)
-	flags.FileDir = mWorkingDir
-	log.Printf("AFTER flag %s", flags.FileDir)
-
 	tagflag.Parse(&flags)
-	cl, err := newAndroidTorrentClient(mWorkingDir, seedIn)
+	cl, err := newTorrentClient()
 	if err != nil {
 		log.Fatalf("error creating torrent client: %s", err)
 	}
@@ -98,7 +86,7 @@ func AndroidMain(mWorkingDir string, seedIn bool, addrIn string) {
 	http.HandleFunc("/debug/dht", func(w http.ResponseWriter, r *http.Request) {
 		cl.DHT().WriteStatus(w)
 	})
-	l, err := net.Listen("tcp", addrIn)
+	l, err := net.Listen("tcp", flags.Addr)
 	if err != nil {
 		log.Fatal(err)
 	}
